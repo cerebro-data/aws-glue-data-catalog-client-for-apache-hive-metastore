@@ -55,10 +55,10 @@ public class OkeraSystemMetadataCache {
   private static OkeraSystemMetadataCache instance;
 
   // DB Caching constants
-  private static final String OkeraSystemDbName = "okera_system";
-  private static final String OkeraInternalDbPrefix = "_okera";
-  private static final String OkeraCrawlerDbPrefix = "_okera_crawler";
-  private static final char escapeChar = '`';
+  private static final String OKERA_SYSTEM_DB_NAME = "okera_system";
+  private static final String OKERA_INTERNAL_DB_PREFIX = "_okera";
+  private static final String OKERA_CRAWLER_DB_PREFIX = "_okera_crawler";
+  private static final String OKERA_ESCAPE_CHAR = "`";
 
   // TODO: fancy pre-populating LoadingCache?
   private Cache<String,Table> tblCache = null;
@@ -139,23 +139,23 @@ public class OkeraSystemMetadataCache {
   }
 
   private String getCanonicalTblName(String tblName) {
-    return tblName.toLowerCase().replace("`", "").trim();
+    return tblName.toLowerCase().replace(OKERA_ESCAPE_CHAR, "").trim();
   }
 
   private String getCanonicalDbName(String dbName)  {
-    return dbName.toLowerCase().replace("`", "").trim();
+    return dbName.toLowerCase().replace(OKERA_ESCAPE_CHAR, "").trim();
   }
 
   private boolean isCachedDb(String name) {
     name = getCanonicalDbName(name);
     if (name.equalsIgnoreCase(DEFAULT_DATABASE_NAME)
-        || name.equalsIgnoreCase(OkeraSystemDbName))  {
+        || name.equalsIgnoreCase(OKERA_SYSTEM_DB_NAME))  {
       return true;
     }
-    if (name.toLowerCase().startsWith(OkeraCrawlerDbPrefix))  {
+    if (name.toLowerCase().startsWith(OKERA_CRAWLER_DB_PREFIX))  {
       return false;
     }
-    if (name.toLowerCase().startsWith(OkeraInternalDbPrefix)) {
+    if (name.toLowerCase().startsWith(OKERA_INTERNAL_DB_PREFIX)) {
       return true;
     }
     return false;
