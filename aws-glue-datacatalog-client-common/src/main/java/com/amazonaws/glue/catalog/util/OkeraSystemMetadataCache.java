@@ -11,6 +11,7 @@ import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_N
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 
  /**
@@ -66,7 +67,11 @@ public class OkeraSystemMetadataCache {
   private OkeraSystemMetadataCache()  {
     // TODO: expiry?
     // TODO: loadingCache (will need impl classes for table and db loaders)
-    tblCache = CacheBuilder.newBuilder().build();
+    // the tblCache has an expireAfterWrite policy for 2 hours to force an invalidation
+    // in case of no natural invalidation and fetch from glue. The db cache
+    // has no eviction policy to avoid out-of-sync db and tbl caches.
+    tblCache = CacheBuilder.newBuilder()
+        .expireAfterWrite(4,TimeUnit.HOURS).build();
     dbCache = CacheBuilder.newBuilder().build();
   }
 
