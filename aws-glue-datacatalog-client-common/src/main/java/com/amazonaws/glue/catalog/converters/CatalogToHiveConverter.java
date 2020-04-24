@@ -23,6 +23,8 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.TableMeta;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
+
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -43,9 +45,15 @@ import static com.amazonaws.glue.catalog.converters.ConverterUtils.INDEX_ORIGIN_
 
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 
+import static org.apache.hadoop.hive.metastore.TableType.EXTERNAL_TABLE;
+
 public class CatalogToHiveConverter {
 
   private static final Logger logger = Logger.getLogger(CatalogToHiveConverter.class);
+
+  // if set to false, only then go down the error path. if not set, or set to true, default
+  // to EXTERNAL_TABLE if glue table object does not have a TableType set.
+  private static final String DEFAULT_EXT_TABLE_KEY = "OKERA_GLUE_DEFAULT_EXTERNAL_TABLE";
 
   private static final ImmutableMap<String, HiveException> EXCEPTION_MAP = ImmutableMap.<String, HiveException>builder()
       .put("AlreadyExistsException", new HiveException() {
@@ -152,8 +160,19 @@ public class CatalogToHiveConverter {
     hiveTable.setParameters(parameterMap);
     hiveTable.setViewOriginalText(catalogTable.getViewOriginalText());
     hiveTable.setViewExpandedText(catalogTable.getViewExpandedText());
-    hiveTable.setTableType(catalogTable.getTableType());
-
+    String defaultExtTable = System.getenv(DEFAULT_EXT_TABLE_KEY);
+    if (!Strings.isNullOrEmpty(catalogTable.getTableType()))  {
+      hiveTable.setTableType(catalogTable.getTableType());
+    } else  {
+      logger.info("Table type not set for table: " + dbname + "." + catalogTable.getName());
+      if (Strings.isNullOrEmpty(defaultExtTable) || ("true").equalsIgnoreCase(defaultExtTable)) {
+        logger.info("Defaulting to external table");
+        hiveTable.setTableType(EXTERNAL_TABLE.toString());
+      } else  {
+        logger.info("No default table type set.");
+        hiveTable.setTableType(catalogTable.getTableType());
+      }
+    }
     return hiveTable;
   }
 
@@ -219,7 +238,7 @@ public class CatalogToHiveConverter {
     if (catalogSkewedInfo == null) {
       return null;
     }
-    
+
     SkewedInfo hiveSkewedInfo = new SkewedInfo();
     hiveSkewedInfo.setSkewedColNames(firstNonNull(catalogSkewedInfo.getSkewedColumnNames(), Lists.<String>newArrayList()));
     hiveSkewedInfo.setSkewedColValues(convertSkewedValue(catalogSkewedInfo.getSkewedColumnValues()));
@@ -249,7 +268,7 @@ public class CatalogToHiveConverter {
 	  Partition tgt = new Partition();
 	  Date createTime = src.getCreationTime();
 	  if (createTime != null) {
-		  tgt.setCreateTime((int) (createTime.getTime() / 1000)); 
+		  tgt.setCreateTime((int) (createTime.getTime() / 1000));
 		  tgt.setCreateTimeIsSet(true);
 	  } else {
 		  tgt.setCreateTimeIsSet(false);
@@ -269,16 +288,16 @@ public class CatalogToHiveConverter {
 		  tgt.setLastAccessTimeIsSet(false);
 	  }
 	  Map<String, String> params = src.getParameters();
-	  
+
 	  // A null parameter map causes Hive to throw a NPE
 	  // so ensure we do not return a Partition object with a null parameter map.
 	  if (params == null) {
 	    params = Maps.newHashMap();
 	  }
-	  
+
 	  tgt.setParameters(params);
 	  tgt.setParametersIsSet(true);
-	  
+
 	  String tableName = src.getTableName();
 	  if (tableName != null) {
 		  tgt.setTableName(tableName);
@@ -286,7 +305,7 @@ public class CatalogToHiveConverter {
 	  } else {
 		  tgt.setTableNameIsSet(false);
 	  }
-	  
+
 	  List<String> values = src.getValues();
 	  if (values != null) {
 		  tgt.setValues(values);
@@ -294,7 +313,7 @@ public class CatalogToHiveConverter {
 	  } else {
 		  tgt.setValuesIsSet(false);
 	  }
-	  
+
 	  com.amazonaws.services.glue.model.StorageDescriptor sd = src.getStorageDescriptor();
 	  if (sd != null) {
 		  StorageDescriptor hiveSd = convertStorageDescriptor(sd);
@@ -303,7 +322,7 @@ public class CatalogToHiveConverter {
 	  } else {
 		  tgt.setSdIsSet(false);
 	  }
-	  
+
 	  return tgt;
   }
 
@@ -365,12 +384,12 @@ public class CatalogToHiveConverter {
     }
     return skewedValues;
   }
-  
+
   public static PrincipalType convertPrincipalType(com.amazonaws.services.glue.model.PrincipalType catalogPrincipalType) {
     if(catalogPrincipalType == null) {
       return null;
     }
-    
+
     if(catalogPrincipalType == com.amazonaws.services.glue.model.PrincipalType.GROUP) {
       return PrincipalType.GROUP;
     } else if(catalogPrincipalType == com.amazonaws.services.glue.model.PrincipalType.USER) {

@@ -13,13 +13,17 @@ public enum HiveTableValidator {
   REQUIRED_PROPERTIES_VALIDATOR {
     public void validate(Table table) {
       String missingProperty = null;
+      // match logically against CatalogToHiveConverter.java
+      String defaultExtTable = System.getenv("OKERA_GLUE_DEFAULT_EXTERNAL_TABLE");
 
       if(notApplicableTableType(table)) {
         return;
       }
 
       if (table.getTableType() == null) {
-        missingProperty = "TableType";
+        if (defaultExtTable != null && ("false").equalsIgnoreCase(defaultExtTable)) {
+          missingProperty = "TableType";
+        }
       } else if (table.getStorageDescriptor() == null) {
         missingProperty = "StorageDescriptor";
       } else if (table.getStorageDescriptor().getInputFormat() == null) {
