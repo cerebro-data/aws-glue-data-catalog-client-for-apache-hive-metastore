@@ -194,7 +194,8 @@ public class GlueMetastoreClientDelegate {
 
   // Okera modifications
   private static OkeraSystemMetadataCache okeraCache;
-  private static final String LOG_GLUE_RPC_ENV_VAR = "OKERA_LOG_GLUE_RPC";
+  private static final String LOG_GLUE_RPC_ENV_VAR = "OKERA_GLUE_LOG_RPC";
+  private static final String VALIDATE_GLUE_TABLE_ENV_VAR = "OKERA_GLUE_VALIDATE_TABLE";
 
   public GlueMetastoreClientDelegate(HiveConf conf, AWSGlue glueClient, Warehouse wh) throws MetaException {
     checkNotNull(conf, "Hive Config cannot be null");
@@ -477,7 +478,9 @@ public class GlueMetastoreClientDelegate {
 
     try {
       Table table = getTableHelper(dbName, tableName);
-      validateGlueTable(table);
+      if (("true").equalsIgnoreCase(System.getenv(VALIDATE_GLUE_TABLE_ENV_VAR)))  {
+        validateGlueTable(table);
+      }
       return CatalogToHiveConverter.convertTable(table, dbName);
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -2031,7 +2034,7 @@ public class GlueMetastoreClientDelegate {
   }
 
   private void logRPC (String rpcName, String objName)  {
-    if (System.getenv(LOG_GLUE_RPC_ENV_VAR).equalsIgnoreCase("true")) {
+    if (("true").equalsIgnoreCase(System.getenv(LOG_GLUE_RPC_ENV_VAR))) {
       logger.info("GLUERPC: Sending " + rpcName + "rpc for " + objName);
     }
   }
