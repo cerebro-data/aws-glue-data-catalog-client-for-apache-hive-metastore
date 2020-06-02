@@ -573,7 +573,7 @@ public class GlueMetastoreClientDelegate {
     }
 
     if (!oldTableName.equalsIgnoreCase(newTable.getTableName())) {
-      throw new UnsupportedOperationException("Table rename is not supported");
+      throw new UnsupportedOperationException("Table rename is not supported by AWS Glue.");
     }
 
     validateTableObject(newTable, conf);
