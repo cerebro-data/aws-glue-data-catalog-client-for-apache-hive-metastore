@@ -9,6 +9,7 @@ import com.google.common.cache.Cache;
 
 import static org.apache.hadoop.hive.metastore.MetaStoreUtils.DEFAULT_DATABASE_NAME;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +64,7 @@ public class OkeraSystemMetadataCache {
   // TODO: fancy pre-populating LoadingCache?
   private Cache<String,Table> tblCache = null;
   private Cache<String,Database> dbCache = null;
+  private Cache<String,List<String>> dbTablesCache = null;
 
   private OkeraSystemMetadataCache()  {
     // TODO: expiry?
@@ -73,6 +75,8 @@ public class OkeraSystemMetadataCache {
     tblCache = CacheBuilder.newBuilder()
         .expireAfterWrite(4,TimeUnit.HOURS).build();
     dbCache = CacheBuilder.newBuilder().build();
+    dbTablesCache = CacheBuilder.newBuilder()
+        .expireAfterWrite(30,TimeUnit.MINUTES).build();
   }
 
   public static OkeraSystemMetadataCache getInstance() {
@@ -88,6 +92,7 @@ public class OkeraSystemMetadataCache {
   public void invalidateDb(String dbName) {
     dbName = getCanonicalDbName(dbName);
     dbCache.invalidate(dbName);
+    dbTablesCache.invalidate(dbName);
     // if a db is being invalidated, delete all table entries in the cache
     // for this db
     if (isCachedDb(dbName)) {
@@ -113,10 +118,22 @@ public class OkeraSystemMetadataCache {
     return dbCache.getIfPresent(getCanonicalDbName(dbName));
   }
 
+  public void setDbTables(String dbName, List<String> tables) {
+    dbName = getCanonicalDbName(dbName);
+    if (isCachedDb(dbName)) {
+      dbTablesCache.put(dbName, tables);
+    }
+  }
+
+  public List<String> getDbTables(String dbName) {
+    return dbTablesCache.getIfPresent(getCanonicalDbName(dbName));
+  }
+
   /**
    * Table get/set/invalidate for cached internal Tables
    */
   public void invalidateTable(String dbName, String tblName) {
+    dbTablesCache.invalidate(getCanonicalDbName(dbName));
     tblCache.invalidate(getFullyQualifiedTblName(dbName, tblName));
   }
 
@@ -126,7 +143,7 @@ public class OkeraSystemMetadataCache {
     }
   }
 
-  public Table getTbl(String dbName, String tblName)  {
+  public Table getTbl(String dbName, String tblName) {
     return tblCache.getIfPresent(getFullyQualifiedTblName(dbName, tblName));
   }
 
@@ -148,6 +165,10 @@ public class OkeraSystemMetadataCache {
 
   private boolean isCachedDb(String name) {
     name = getCanonicalDbName(name);
+    if ("true".equalsIgnoreCase(System.getenv("OKERA_ENABLE_GLUE_CACHE"))) {
+        return true;
+    }
+
     if (name.equalsIgnoreCase(DEFAULT_DATABASE_NAME)
         || name.equalsIgnoreCase(OKERA_SYSTEM_DB_NAME))  {
       return true;

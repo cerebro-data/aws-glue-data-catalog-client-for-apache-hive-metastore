@@ -438,6 +438,8 @@ public class GlueMetastoreClientDelegate {
       logger.error(msg, e);
       throw new MetaException(msg + e);
     }
+    // if table object successfully create, invalidate cache entry for DB table listing
+    okeraCache.invalidateTable(tbl.getDbName(), tbl.getTableName());
     // if tbl object succesfully created, add to cache
     okeraCache.setTbl(tbl.getDbName(), tbl.getTableName(), tbl);
   }
@@ -498,6 +500,16 @@ public class GlueMetastoreClientDelegate {
     try {
       String nextToken = null;
 
+      if ("true".equalsIgnoreCase(System.getenv("OKERA_ENABLE_GLUE_CACHE"))) {
+        if (".*".equalsIgnoreCase(tablePattern)) {
+          List<String> tableNames = okeraCache.getDbTables(dbname);
+          if (tableNames != null) {
+            logRPC("getTablesCached", (dbname + "." + tablePattern));
+            return tableNames;
+          }
+        }
+      }
+
       do {
         GetTablesRequest getTablesRequest = new GetTablesRequest().withDatabaseName(dbname)
             .withExpression(tablePattern).withNextToken(nextToken).withCatalogId(catalogId);
@@ -510,6 +522,9 @@ public class GlueMetastoreClientDelegate {
 
         nextToken = result.getNextToken();
       } while (nextToken != null);
+      if (".*".equalsIgnoreCase(tablePattern)) {
+        okeraCache.setDbTables(dbname, names);
+      }
       return names;
     } catch (AmazonServiceException e) {
       throw CatalogToHiveConverter.wrapInHiveException(e);
@@ -2035,7 +2050,7 @@ public class GlueMetastoreClientDelegate {
 
   private void logRPC (String rpcName, String objName)  {
     if (("true").equalsIgnoreCase(System.getenv(LOG_GLUE_RPC_ENV_VAR))) {
-      logger.info("GLUERPC: Sending " + rpcName + "rpc for " + objName);
+      logger.info("GLUERPC: Sending " + rpcName + " rpc for " + objName);
     }
   }
 }
