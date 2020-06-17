@@ -5,14 +5,14 @@
     <parent>
         <groupId>com.amazonaws.glue</groupId>
         <artifactId>aws-glue-datacatalog-hive-client</artifactId>
-        <version>1.10.0-okera-2.1.1</version>
+        <version>1.10.0-okera-2.1.2</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>shims</artifactId>
     <packaging>pom</packaging>
 
     <name>AwsGlueDataCatalogShims</name>
-    <description>Shims for Hive 1.2.1/2.1.1 compatibility</description>
+    <description>Shims for Hive 1.2.1/2.1.2 compatibility</description>
 
     <modules>
         <module>common</module>
